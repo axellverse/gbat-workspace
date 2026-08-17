@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+.claude
+Secret.json
+*.log
+*.mjs.map
+verify-*.mjs

@@ -1,0 +1,246 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------- tokens
+   One palette for the whole workspace. Every tool page is built from the
+   component classes below, so the tools cannot drift apart visually. */
+
+:root {
+  --canvas: #f1f4f9;
+  --surface: #ffffff;
+  --surface-2: #f7f9fc;
+  --ink: #0b1220;
+  --muted: #5b6b84;
+  --line: #dfe5ee;
+  --line-strong: #c3cddd;
+
+  --brand: #1d4ed8;
+  --brand-hover: #1740b0;
+  --brand-soft: #e8efff;
+  --brand-ink: #ffffff;
+
+  --pinterest: #e60023;
+  --scraper: #0f766e;
+
+  --ok: #047857;
+  --ok-soft: #e6f6f0;
+  --warn: #92400e;
+  --warn-soft: #fdf3e3;
+  --danger: #b42318;
+  --danger-soft: #fdeceb;
+
+  --shadow: 0 1px 2px rgb(11 18 32 / 0.06), 0 8px 24px -12px rgb(11 18 32 / 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: #0a0f18;
+    --surface: #111927;
+    --surface-2: #16202f;
+    --ink: #eef2f8;
+    --muted: #93a2b8;
+    --line: #233043;
+    --line-strong: #33435c;
+
+    --brand: #5b8bff;
+    --brand-hover: #7ba2ff;
+    --brand-soft: #16233d;
+    --brand-ink: #071026;
+
+    --pinterest: #ff405f;
+    --scraper: #2dd4bf;
+
+    --ok: #6ee7b7;
+    --ok-soft: #0d2a22;
+    --warn: #fcd34d;
+    --warn-soft: #2c2210;
+    --danger: #fca5a5;
+    --danger-soft: #2c1414;
+
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px -14px rgb(0 0 0 / 0.7);
+  }
+}
+
+/* An explicit dark choice wins over the OS in both directions. */
+:root[data-theme="dark"] {
+  --canvas: #0a0f18;
+  --surface: #111927;
+  --surface-2: #16202f;
+  --ink: #eef2f8;
+  --muted: #93a2b8;
+  --line: #233043;
+  --line-strong: #33435c;
+
+  --brand: #5b8bff;
+  --brand-hover: #7ba2ff;
+  --brand-soft: #16233d;
+  --brand-ink: #071026;
+
+  --pinterest: #ff405f;
+  --scraper: #2dd4bf;
+
+  --ok: #6ee7b7;
+  --ok-soft: #0d2a22;
+  --warn: #fcd34d;
+  --warn-soft: #2c2210;
+  --danger: #fca5a5;
+  --danger-soft: #2c1414;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px -14px rgb(0 0 0 / 0.7);
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-pinterest: var(--pinterest);
+  --color-scraper: var(--scraper);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+}
+
+html,
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Long tables and wide previews must never push the page sideways. */
+body {
+  overflow-x: hidden;
+}
+
+/* ------------------------------------------------------------ components */
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-surface p-5;
+    box-shadow: var(--shadow);
+  }
+
+  .card-flat {
+    @apply rounded-2xl border border-line bg-surface p-5;
+  }
+
+  .field {
+    @apply w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink outline-none
+           transition placeholder:text-muted/70 focus:border-brand focus:bg-surface;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted;
+  }
+
+  .hint {
+    @apply mt-1.5 text-xs leading-relaxed text-muted;
+  }
+
+  /* .btn is the shared shape. The variants repeat it because Tailwind v4
+     cannot @apply one component class from inside another. */
+  .btn {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm
+           font-semibold transition disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .btn-primary {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm
+           font-semibold transition disabled:cursor-not-allowed disabled:opacity-45
+           bg-brand text-brand-ink hover:bg-brand-hover;
+  }
+
+  .btn-ghost {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-line
+           bg-surface px-4 py-2 text-sm font-semibold text-ink transition
+           hover:border-line-strong hover:bg-surface-2
+           disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .btn-quiet {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-xs
+           font-semibold text-muted transition hover:bg-surface-2 hover:text-ink
+           disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .chip {
+    @apply inline-flex items-center rounded-full border border-line bg-surface-2 px-2.5 py-1 text-xs
+           font-medium text-muted;
+  }
+
+  .tag {
+    @apply inline-flex items-center rounded-md bg-brand-soft px-2 py-0.5 text-[11px] font-semibold
+           text-brand;
+  }
+
+  .note {
+    @apply rounded-xl border px-4 py-3 text-sm;
+  }
+
+  .note-ok {
+    @apply rounded-xl border px-4 py-3 text-sm;
+    border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+    background: var(--ok-soft);
+    color: var(--ok);
+  }
+
+  .note-warn {
+    @apply rounded-xl border px-4 py-3 text-sm;
+    border-color: color-mix(in srgb, var(--warn) 35%, transparent);
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+
+  .note-danger {
+    @apply rounded-xl border px-4 py-3 text-sm;
+    border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  .step-badge {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-brand text-xs font-bold
+           text-brand-ink;
+  }
+
+  .section-title {
+    @apply mb-4 flex items-center gap-2.5 text-sm font-bold text-ink;
+  }
+
+  .nav-link {
+    @apply rounded-lg px-3 py-1.5 text-sm font-medium text-muted transition hover:bg-surface-2
+           hover:text-ink;
+  }
+
+  .nav-link-active {
+    @apply rounded-lg px-3 py-1.5 text-sm font-semibold text-ink;
+    background: var(--brand-soft);
+    color: var(--brand);
+  }
+}
+
+.spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

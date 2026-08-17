@@ -1,0 +1,13 @@
+node_modules/
+.next/
+next-env.d.ts
+tsconfig.tsbuildinfo
+.DS_Store
+
+# Real credentials live here. Secret.example.json is the version that ships.
+Secret.json
+
+# Deployment env files. .env.example is the version that ships.
+.env
+.env.*
+!.env.example

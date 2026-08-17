@@ -26,7 +26,27 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const { sessionSecret } = await readAuth();
+  let sessionSecret: string;
+  try {
+    ({ sessionSecret } = await readAuth());
+  } catch (err) {
+    // Middleware runs on every request, so anything thrown here takes the whole
+    // app down as a bare "Internal Server Error". Say what is actually wrong
+    // and point at the endpoint that diagnoses it.
+    const detail = err instanceof Error ? err.message : String(err);
+    return new NextResponse(
+      pathname.startsWith("/api/")
+        ? JSON.stringify({ error: "Workspace storage is unavailable.", detail })
+        : `Workspace storage is unavailable.\n\n${detail}\n\nOpen /api/health for the full diagnosis.`,
+      {
+        status: 503,
+        headers: {
+          "content-type": pathname.startsWith("/api/") ? "application/json" : "text/plain; charset=utf-8",
+        },
+      },
+    );
+  }
+
   if (verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value, sessionSecret)) {
     return NextResponse.next();
   }

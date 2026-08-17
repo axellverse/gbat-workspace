@@ -55,6 +55,8 @@ After the first deploy, open **`/api/health`**. It needs no sign-in and answers:
 ```
 
 If `ok` is `false` the volume is not mounted, and **any key entered will be lost on the next restart**.
+The app still boots in that state rather than returning a blank 500 — it signs in, shows a red banner
+on the home page, and refuses saves with the reason — so the problem is always diagnosable.
 The home page shows the same warning once you are signed in. The Docker `HEALTHCHECK` uses this
 endpoint, so a misconfigured container never reports healthy.
 

@@ -34,6 +34,21 @@ function seedPassword(): string {
   return process.env.GBAT_PASSWORD?.trim() || DEFAULT_PASSWORD;
 }
 
+/**
+ * The signing secret to use when it cannot be persisted.
+ *
+ * It has to be *derived* rather than random: middleware and route handlers are
+ * separate bundles with separate module state, so a random value would differ
+ * between them and every freshly issued cookie would be rejected. Deriving it
+ * from the password gives both sides the same answer.
+ *
+ * This grants no access that knowing the password does not already grant, and
+ * it only ever applies while storage is broken.
+ */
+function derivedSecret(password: string): string {
+  return createHash("sha256").update(`gbat-ephemeral-session:${password}`).digest("hex");
+}
+
 export async function readAuth(): Promise<AuthConfig> {
   const secrets = await readSecrets();
   const auth = secrets.auth;
@@ -49,8 +64,15 @@ export async function readAuth(): Promise<AuthConfig> {
     password: auth?.password || seedPassword(),
     sessionSecret: auth?.sessionSecret || randomBytes(32).toString("hex"),
   };
-  await writeSecrets({ ...secrets, auth: next });
-  return next;
+
+  try {
+    await writeSecrets({ ...secrets, auth: next });
+    return next;
+  } catch {
+    // Storage is broken. Fall back to a derived secret so the password gate
+    // still works and the operator can sign in to see what is wrong.
+    return { password: next.password, sessionSecret: derivedSecret(next.password) };
+  }
 }
 
 /** True while the workspace is still on the password shipped in the repo. */

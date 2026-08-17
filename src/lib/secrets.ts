@@ -347,7 +347,16 @@ export async function readSecrets(): Promise<Secrets> {
     return value;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      await writeSecrets(DEFAULT_SECRETS);
+      // First run. If the directory cannot be written — the usual cause is a
+      // deployment pointed at a path that does not exist — carry on in memory
+      // rather than failing every request. /api/health reports the truth, and
+      // the UI warns; a workspace that boots and complains is far more use
+      // than an Internal Server Error with nothing behind it.
+      try {
+        await writeSecrets(DEFAULT_SECRETS);
+      } catch {
+        return DEFAULT_SECRETS;
+      }
       return DEFAULT_SECRETS;
     }
     if (err instanceof SyntaxError) {

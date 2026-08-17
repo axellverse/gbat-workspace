@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { fail } from "@/lib/http";
 import { usingDefaultPassword } from "@/lib/auth";
-import { checkStorage, readSecrets, toPublicSecrets, updateSecrets, type SecretsPatch } from "@/lib/secrets";
+import {
+  checkStorage,
+  configSource,
+  readSecrets,
+  toPublicSecrets,
+  updateSecrets,
+  type SecretsPatch,
+} from "@/lib/secrets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,9 +23,17 @@ export async function GET() {
       usingDefaultPassword(),
       checkStorage(),
     ]);
+    const source = configSource();
     return NextResponse.json({
       ...toPublicSecrets(secrets),
-      warnings: { defaultPassword, storageWritable: storage.writable, storageDetail: storage.detail },
+      warnings: {
+        defaultPassword,
+        configSource: source,
+        // Env-configured instances cannot save; that is expected, not a fault.
+        readOnly: source === "env",
+        storageWritable: storage.writable,
+        storageDetail: storage.detail,
+      },
     });
   } catch (err) {
     return fail(500, err instanceof Error ? err.message : "Could not read Secret.json.");
@@ -31,6 +46,14 @@ export async function POST(req: Request) {
     patch = (await req.json()) as SecretsPatch;
   } catch {
     return fail(400, "Invalid request body.");
+  }
+
+  if (configSource() === "env") {
+    return fail(
+      409,
+      "This instance is configured from GBAT_SECRETS, so settings cannot be saved here. " +
+        "Use Export configuration, paste the result into that variable, and redeploy.",
+    );
   }
 
   // History is append-only from the tools themselves, never from the settings form.

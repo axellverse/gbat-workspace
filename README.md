@@ -36,22 +36,46 @@ platform assigns — the password is the boundary there, so read "Before you exp
 
 ## Deploying it
 
-The app writes its settings to a file, so it needs **a host with a persistent disk**. It deploys from
-GitHub to Railway, Render, Fly.io or any VPS. A `Dockerfile` is included and `next.config.mjs` emits
-a standalone server.
+Two ways, depending on whether the host gives you a writable disk. A `Dockerfile` is included and
+`next.config.mjs` emits a standalone server.
+
+### A — No persistent disk (`GBAT_SECRETS`)
+
+Works anywhere, including hosts that cannot store a file at all. Set the workspace up locally where
+the UI makes it easy, then move it in one variable:
+
+1. Locally: add your keys, stores and accounts under **Settings**.
+2. **Settings → API Keys → Export configuration → Generate**, then Copy.
+3. On the host, set `GBAT_SECRETS` to that value and deploy.
+
+Everything works — both tools, all keys, every store. The one trade is that **Settings is read-only**
+there, because a process cannot rewrite its own environment: to change anything, edit the variable
+and redeploy. Publish history and transfer counters do not accumulate either, for the same reason.
+
+The value contains every API key and the workspace password. Treat it as a secret: paste it only
+into the host's secret storage, never into git. Base64 is accepted too, if a panel mangles long
+values.
+
+### B — A persistent disk (`GBAT_DATA_DIR`)
+
+On Railway, Render, Fly.io or a VPS, mount a volume and point `GBAT_DATA_DIR` at it. Settings stays
+fully editable and history accumulates, exactly as it does locally.
+
+If both are set, **the file wins** — `GBAT_SECRETS` is only the fallback.
 
 | Setting | Value |
 | --- | --- |
 | Build | `npm run build` |
 | Start | `node server.js` (or `npm start`) |
-| Volume | mount one, then set `GBAT_DATA_DIR` to its path (`/data` in the Dockerfile) |
-| `GBAT_PASSWORD` | the password for the fresh instance — set it, or it comes up on the one in this README |
+| Config | `GBAT_SECRETS` (option A) **or** a volume plus `GBAT_DATA_DIR` (option B) |
+| `GBAT_PASSWORD` | the password for a fresh instance when neither of the above carries one |
 | Port | supplied by the platform via `PORT`; the container binds `0.0.0.0` |
 
-After the first deploy, open **`/api/health`**. It needs no sign-in and answers:
+After the first deploy, open **`/api/health`**. It needs no sign-in and names the source in use:
 
 ```json
-{ "ok": true, "storage": { "writable": true, "dataDir": "/data", "detail": "Settings can be saved." } }
+{ "ok": true, "configSource": "env",  "settingsEditable": false }   // option A
+{ "ok": true, "configSource": "file", "settingsEditable": true  }   // option B
 ```
 
 If `ok` is `false` the volume is not mounted, and **any key entered will be lost on the next restart**.
@@ -60,11 +84,11 @@ on the home page, and refuses saves with the reason — so the problem is always
 The home page shows the same warning once you are signed in. The Docker `HEALTHCHECK` uses this
 endpoint, so a misconfigured container never reports healthy.
 
-### Vercel and Netlify will not work
+### Vercel and Netlify
 
-Not a bug to fix — their filesystems are read-only, and `/tmp` is wiped between invocations. There is
-nowhere for `Secret.json` to live, so settings cannot persist at all. `/api/health` returns 503 there
-and says so. Using those platforms means replacing the file store with a KV or database backend.
+Their filesystems are read-only, so **option B cannot work** there — there is nowhere for
+`Secret.json` to live. **Option A works fine**: with `GBAT_SECRETS` set there is nothing to write,
+and `/api/health` reports `configSource: "env"` and a healthy 200.
 
 ### Before you expose it
 

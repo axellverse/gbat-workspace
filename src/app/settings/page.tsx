@@ -240,6 +240,7 @@ export default function SettingsPage() {
       return `${r.accounts.length} Page${r.accounts.length === 1 ? "" : "s"} · ${withIg} with Instagram linked`;
     });
 
+  const warnings = secrets?.warnings;
   const secretType = showKeys ? "text" : "password";
   const activeStore = stores.find((store) => store.id === activeStoreId) || null;
 
@@ -285,7 +286,23 @@ export default function SettingsPage() {
 
       {error && <Note tone="danger">{error}</Note>}
       {saved && <Note tone="ok">{saved}</Note>}
-      {dirty && <Note tone="warn">Unsaved changes — nothing is written to Secret.json until you save.</Note>}
+
+      {warnings?.readOnly && (
+        <Note tone="warn">
+          <strong className="font-bold">Configured from the environment.</strong> This instance reads
+          <code className="mx-1 rounded bg-surface-2 px-1.5 py-0.5">GBAT_SECRETS</code>, so changes here cannot be
+          saved. Edit below to see the shape, then use <strong>Export configuration</strong>, paste the result into
+          that variable and redeploy.
+        </Note>
+      )}
+      {warnings && !warnings.readOnly && !warnings.storageWritable && (
+        <Note tone="danger">
+          <strong className="font-bold">Settings cannot be saved.</strong> {warnings.storageDetail}
+        </Note>
+      )}
+      {dirty && !warnings?.readOnly && (
+        <Note tone="warn">Unsaved changes — nothing is written to Secret.json until you save.</Note>
+      )}
 
       {/* ---------------------------------------------- tab 1: API keys */}
       {tab === "ai" && (
@@ -334,6 +351,7 @@ export default function SettingsPage() {
           </section>
 
           <PasswordCard />
+          <ExportCard />
         </div>
       )}
 
@@ -674,6 +692,87 @@ function StoreChooser({
       <button className="btn-ghost ml-auto" onClick={onAdd}>
         Add store
       </button>
+    </section>
+  );
+}
+
+/**
+ * Turns the whole configuration into one line for `GBAT_SECRETS`.
+ *
+ * The point of this is deployment: set the workspace up here, where the UI
+ * makes it easy, then move it to a host with no writable disk by pasting a
+ * single environment variable.
+ */
+function ExportCard() {
+  const [value, setValue] = useState("");
+  const [state, setState] = useState<TestState>(IDLE);
+
+  const load = async () => {
+    setState({ status: "busy", message: "" });
+    try {
+      const r = await getJson<{ json: string; base64: string }>("/api/settings/export");
+      setValue(r.json);
+      setState({
+        status: "ok",
+        message: `${r.json.length} characters. Paste this as GBAT_SECRETS, then redeploy.`,
+      });
+    } catch (err) {
+      setState({ status: "fail", message: err instanceof Error ? err.message : String(err) });
+    }
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setState({ status: "ok", message: "Copied to the clipboard." });
+    } catch {
+      setState({ status: "fail", message: "Could not copy — select the text and copy it manually." });
+    }
+  };
+
+  return (
+    <section className="card space-y-4">
+      <SectionHead
+        title="Export configuration"
+        subtitle="Every key, store and account as one line, for hosts with no writable disk. Set GBAT_SECRETS to this and the workspace runs with no Secret.json at all."
+      />
+
+      <div className="flex flex-wrap gap-2">
+        <button className="btn-ghost" onClick={load} disabled={state.status === "busy"}>
+          {state.status === "busy" ? (
+            <>
+              <Spinner /> Building…
+            </>
+          ) : (
+            "Generate GBAT_SECRETS value"
+          )}
+        </button>
+        {value && (
+          <button className="btn-ghost" onClick={copy}>
+            Copy
+          </button>
+        )}
+      </div>
+
+      {value && (
+        <textarea
+          className="field min-h-32 resize-y font-mono text-[11px]"
+          readOnly
+          value={value}
+          onFocus={(e) => e.currentTarget.select()}
+          aria-label="GBAT_SECRETS value"
+        />
+      )}
+
+      {state.status === "ok" && <p className="note-ok text-xs">✓ {state.message}</p>}
+      {state.status === "fail" && <p className="note-danger text-xs">✕ {state.message}</p>}
+
+      {value && (
+        <p className="hint">
+          This contains every API key and the workspace password. Treat it exactly as you would the keys
+          themselves — never commit it, and paste it only into your host&apos;s secret storage.
+        </p>
+      )}
     </section>
   );
 }

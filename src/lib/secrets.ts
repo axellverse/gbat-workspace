@@ -328,6 +328,47 @@ function migrate(parsed: unknown): { value: unknown; changed: boolean } {
 
 let cache: { mtimeMs: number; value: Secrets } | null = null;
 
+/**
+ * Where the running configuration came from.
+ *
+ *   file    Secret.json on disk — editable from Settings, survives restarts
+ *   env     GBAT_SECRETS — read-only at runtime, changed by editing the
+ *           variable and redeploying. The right answer on a host with no
+ *           persistent volume.
+ *   default nothing configured yet
+ */
+export type ConfigSource = "file" | "env" | "default";
+
+let lastSource: ConfigSource = "default";
+
+export function configSource(): ConfigSource {
+  return lastSource;
+}
+
+/**
+ * The whole configuration as one JSON environment variable.
+ *
+ * This is what lets the workspace run on a host with no writable disk: paste
+ * the JSON into `GBAT_SECRETS` and every key, store and account is available
+ * with no file at all. Settings becomes read-only there, because a process
+ * cannot rewrite its own environment.
+ */
+function readSecretsFromEnv(): Secrets | null {
+  const raw = process.env.GBAT_SECRETS?.trim();
+  if (!raw) return null;
+
+  try {
+    // Accept base64 too — some panels mangle multi-line values.
+    const text = raw.startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8");
+    return hydrate(migrate(JSON.parse(text)).value);
+  } catch {
+    throw new Error(
+      "GBAT_SECRETS is set but is not valid JSON (or valid base64 of JSON). Copy it again from " +
+        "Settings → Export configuration.",
+    );
+  }
+}
+
 /** Reads Secret.json, creating it from the defaults the first time the app runs. */
 export async function readSecrets(): Promise<Secrets> {
   try {
@@ -344,18 +385,28 @@ export async function readSecrets(): Promise<Secrets> {
     if (migrated.changed) return writeSecrets(value);
 
     cache = { mtimeMs: stat.mtimeMs, value };
+    lastSource = "file";
     return value;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      // First run. If the directory cannot be written — the usual cause is a
-      // deployment pointed at a path that does not exist — carry on in memory
-      // rather than failing every request. /api/health reports the truth, and
-      // the UI warns; a workspace that boots and complains is far more use
-      // than an Internal Server Error with nothing behind it.
+      // No file yet. An env-configured deployment is complete as it stands —
+      // use it and never try to write.
+      const fromEnv = readSecretsFromEnv();
+      if (fromEnv) {
+        lastSource = "env";
+        return fromEnv;
+      }
+
+      // Otherwise this is a first run. If the directory cannot be written —
+      // usually a deployment pointed at a path that does not exist — carry on
+      // in memory rather than failing every request. /api/health reports the
+      // truth and the UI warns; a workspace that boots and complains is far
+      // more use than an Internal Server Error with nothing behind it.
       try {
         await writeSecrets(DEFAULT_SECRETS);
+        lastSource = "file";
       } catch {
-        return DEFAULT_SECRETS;
+        lastSource = "default";
       }
       return DEFAULT_SECRETS;
     }

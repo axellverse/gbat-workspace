@@ -29,8 +29,9 @@ export async function GET() {
       warnings: {
         defaultPassword,
         configSource: source,
-        // Env-configured instances cannot save; that is expected, not a fault.
-        readOnly: source === "env",
+        // Env- and repo-configured instances with no writable disk cannot
+        // save; that is expected, not a fault.
+        readOnly: source === "env" || source === "repo",
         storageWritable: storage.writable,
         storageDetail: storage.detail,
       },
@@ -48,11 +49,15 @@ export async function POST(req: Request) {
     return fail(400, "Invalid request body.");
   }
 
-  if (configSource() === "env") {
+  const source = configSource();
+  if (source === "env" || source === "repo") {
     return fail(
       409,
-      "This instance is configured from GBAT_SECRETS, so settings cannot be saved here. " +
-        "Use Export configuration, paste the result into that variable, and redeploy.",
+      source === "env"
+        ? "This instance is configured from GBAT_SECRETS, so settings cannot be saved here. Use Export " +
+            "configuration, paste the result into that variable, and redeploy."
+        : "This instance has no writable disk, so it is running from workspace.config.json. Use Export " +
+            "configuration, commit the updated file, and redeploy.",
     );
   }
 

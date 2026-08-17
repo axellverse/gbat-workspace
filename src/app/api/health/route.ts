@@ -17,9 +17,9 @@ export async function GET() {
   const source = configSource();
   const storage = await checkStorage();
 
-  // Configured from the environment is a perfectly healthy state — there is
-  // simply nothing to write, so an unwritable disk is not a fault there.
-  const ok = source === "env" || storage.writable;
+  // Configured from the environment or the repo is a perfectly healthy state —
+  // there is simply nothing to write, so an unwritable disk is not a fault.
+  const ok = source === "env" || source === "repo" || storage.writable;
 
   return NextResponse.json(
     {
@@ -30,7 +30,10 @@ export async function GET() {
       detail:
         source === "env"
           ? "Configured from GBAT_SECRETS. Settings are read-only; edit the variable and redeploy to change them."
-          : storage.detail,
+          : source === "repo"
+            ? "Configured from workspace.config.json in the repository. Settings are read-only; commit an " +
+              "updated file and redeploy to change them."
+            : storage.detail,
     },
     { status: ok ? 200 : 503 },
   );

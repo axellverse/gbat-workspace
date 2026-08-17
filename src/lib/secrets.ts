@@ -333,11 +333,12 @@ let cache: { mtimeMs: number; value: Secrets } | null = null;
  *
  *   file    Secret.json on disk — editable from Settings, survives restarts
  *   env     GBAT_SECRETS — read-only at runtime, changed by editing the
- *           variable and redeploying. The right answer on a host with no
- *           persistent volume.
+ *           variable and redeploying
+ *   repo    workspace.config.json committed alongside the code, so a plain
+ *           git deploy needs no host configuration at all
  *   default nothing configured yet
  */
-export type ConfigSource = "file" | "env" | "default";
+export type ConfigSource = "file" | "env" | "repo" | "default";
 
 let lastSource: ConfigSource = "default";
 
@@ -369,6 +370,31 @@ function readSecretsFromEnv(): Secrets | null {
   }
 }
 
+/**
+ * The configuration committed next to the code.
+ *
+ * This is what makes a bare `git push` deploy work with nothing set on the
+ * host. It lives in the app directory rather than the data directory, because
+ * it ships with the build.
+ *
+ * It holds real credentials, so the repository it sits in MUST be private.
+ */
+export const REPO_CONFIG_FILE = path.join(process.cwd(), "workspace.config.json");
+
+async function readSecretsFromRepo(): Promise<Secrets | null> {
+  try {
+    const raw = await fs.readFile(REPO_CONFIG_FILE, "utf8");
+    if (!raw.trim()) return null;
+    return hydrate(migrate(JSON.parse(raw)).value);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if (err instanceof SyntaxError) {
+      throw new Error("workspace.config.json is not valid JSON. Regenerate it from Settings → Export.");
+    }
+    throw err;
+  }
+}
+
 /** Reads Secret.json, creating it from the defaults the first time the app runs. */
 export async function readSecrets(): Promise<Secrets> {
   try {
@@ -389,15 +415,25 @@ export async function readSecrets(): Promise<Secrets> {
     return value;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      // No file yet. An env-configured deployment is complete as it stands —
-      // use it and never try to write.
+      // No runtime file yet. Fall back through the read-only sources, most
+      // explicit first: the host's environment, then what shipped in the repo.
       const fromEnv = readSecretsFromEnv();
-      if (fromEnv) {
-        lastSource = "env";
-        return fromEnv;
+      const seed = fromEnv ?? (await readSecretsFromRepo());
+
+      if (seed) {
+        // Adopt it as the live file where that is possible, so Settings stays
+        // editable; otherwise run straight from it, read-only.
+        try {
+          const written = await writeSecrets(seed);
+          lastSource = "file";
+          return written;
+        } catch {
+          lastSource = fromEnv ? "env" : "repo";
+          return seed;
+        }
       }
 
-      // Otherwise this is a first run. If the directory cannot be written —
+      // Genuinely nothing configured. If the directory cannot be written —
       // usually a deployment pointed at a path that does not exist — carry on
       // in memory rather than failing every request. /api/health reports the
       // truth and the UI warns; a workspace that boots and complains is far

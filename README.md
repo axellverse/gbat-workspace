@@ -39,7 +39,23 @@ platform assigns — the password is the boundary there, so read "Before you exp
 Two ways, depending on whether the host gives you a writable disk. A `Dockerfile` is included and
 `next.config.mjs` emits a standalone server.
 
-### A — No persistent disk (`GBAT_SECRETS`)
+### A — Nothing to configure on the host (`workspace.config.json`)
+
+The simplest option, and the one to use if the host gives you neither a disk nor env vars. The
+configuration is committed next to the code, so a git deploy is the whole deployment.
+
+1. Locally: add your keys, stores and accounts under **Settings**.
+2. **Settings → API Keys → Export configuration → Generate → Download workspace.config.json**.
+3. Replace the file at the project root with the downloaded one, commit, push. Done.
+
+> **The repository must be private.** That file holds every API key and the workspace password.
+> In a public repo the Shopify, Pinterest and Meta tokens can be used by anyone who finds it, your
+> AI keys are billed to you, and automated scanners find committed credentials within minutes.
+
+Settings is read-only on that instance, for the same reason as option B below: to change something,
+export again, commit, redeploy. It ships with empty values, so an unconfigured deploy is harmless.
+
+### B — No persistent disk, config in the host (`GBAT_SECRETS`)
 
 Works anywhere, including hosts that cannot store a file at all. Set the workspace up locally where
 the UI makes it easy, then move it in one variable:
@@ -56,12 +72,14 @@ The value contains every API key and the workspace password. Treat it as a secre
 into the host's secret storage, never into git. Base64 is accepted too, if a panel mangles long
 values.
 
-### B — A persistent disk (`GBAT_DATA_DIR`)
+### C — A persistent disk (`GBAT_DATA_DIR`)
 
 On Railway, Render, Fly.io or a VPS, mount a volume and point `GBAT_DATA_DIR` at it. Settings stays
 fully editable and history accumulates, exactly as it does locally.
 
-If both are set, **the file wins** — `GBAT_SECRETS` is only the fallback.
+Precedence, most specific first: a writable **Secret.json** > **GBAT_SECRETS** > **workspace.config.json**.
+Whichever is found, if the disk happens to be writable it is adopted as Secret.json and Settings
+becomes editable; otherwise the workspace runs read-only from it.
 
 | Setting | Value |
 | --- | --- |
@@ -74,8 +92,9 @@ If both are set, **the file wins** — `GBAT_SECRETS` is only the fallback.
 After the first deploy, open **`/api/health`**. It needs no sign-in and names the source in use:
 
 ```json
-{ "ok": true, "configSource": "env",  "settingsEditable": false }   // option A
-{ "ok": true, "configSource": "file", "settingsEditable": true  }   // option B
+{ "ok": true, "configSource": "repo", "settingsEditable": false }   // option A
+{ "ok": true, "configSource": "env",  "settingsEditable": false }   // option B
+{ "ok": true, "configSource": "file", "settingsEditable": true  }   // option C
 ```
 
 If `ok` is `false` the volume is not mounted, and **any key entered will be lost on the next restart**.

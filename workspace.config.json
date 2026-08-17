@@ -1,0 +1,42 @@
+{
+  "organisation": {
+    "name": "Axell Group Of Companies",
+    "workspace": "GBAT's Internal Workspace"
+  },
+  "auth": {
+    "password": "techkeo",
+    "sessionSecret": ""
+  },
+  "apiKeys": {
+    "yunwu": {
+      "credentials": []
+    },
+    "openai": {
+      "credentials": []
+    },
+    "ttapi": {
+      "credentials": []
+    },
+    "zyte": {
+      "credentials": []
+    }
+  },
+  "stores": [],
+  "preferences": {
+    "textModel": "gpt-4o-mini",
+    "imageModel": "gpt-image-1",
+    "tone": "warm, aspirational, concrete"
+  },
+  "history": {
+    "publishes": [],
+    "transfers": {
+      "scraped": 0,
+      "scrapedByPlatform": {
+        "shopify": 0,
+        "shopline": 0
+      },
+      "lastScrapeAt": "",
+      "pushedByStore": {}
+    }
+  }
+}

@@ -24,8 +24,10 @@ export async function GET() {
     const payload = { ...secrets, auth };
 
     return NextResponse.json({
+      // One line, for the GBAT_SECRETS environment variable.
       json: JSON.stringify(payload),
-      pretty: JSON.stringify(payload, null, 2),
+      // Readable, for committing as workspace.config.json.
+      pretty: `${JSON.stringify(payload, null, 2)}\n`,
       base64: Buffer.from(JSON.stringify(payload), "utf8").toString("base64"),
     });
   } catch (err) {

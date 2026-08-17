@@ -705,20 +705,30 @@ function StoreChooser({
  */
 function ExportCard() {
   const [value, setValue] = useState("");
+  const [pretty, setPretty] = useState("");
   const [state, setState] = useState<TestState>(IDLE);
 
   const load = async () => {
     setState({ status: "busy", message: "" });
     try {
-      const r = await getJson<{ json: string; base64: string }>("/api/settings/export");
+      const r = await getJson<{ json: string; pretty: string; base64: string }>("/api/settings/export");
       setValue(r.json);
-      setState({
-        status: "ok",
-        message: `${r.json.length} characters. Paste this as GBAT_SECRETS, then redeploy.`,
-      });
+      setPretty(r.pretty);
+      setState({ status: "ok", message: "Ready. Use whichever form your deployment needs." });
     } catch (err) {
       setState({ status: "fail", message: err instanceof Error ? err.message : String(err) });
     }
+  };
+
+  /** Saves the readable form, which is what gets committed to the repo. */
+  const download = () => {
+    const blob = new Blob([pretty], { type: "application/json" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = "workspace.config.json";
+    link.click();
+    URL.revokeObjectURL(href);
   };
 
   const copy = async () => {
@@ -734,7 +744,7 @@ function ExportCard() {
     <section className="card space-y-4">
       <SectionHead
         title="Export configuration"
-        subtitle="Every key, store and account as one line, for hosts with no writable disk. Set GBAT_SECRETS to this and the workspace runs with no Secret.json at all."
+        subtitle="Every key, store and account in one place, so a deployment needs no setup of its own. Download it as workspace.config.json to commit alongside the code, or copy the single line for a GBAT_SECRETS variable."
       />
 
       <div className="flex flex-wrap gap-2">
@@ -744,12 +754,17 @@ function ExportCard() {
               <Spinner /> Building…
             </>
           ) : (
-            "Generate GBAT_SECRETS value"
+            "Generate"
           )}
         </button>
+        {pretty && (
+          <button className="btn-primary" onClick={download}>
+            Download workspace.config.json
+          </button>
+        )}
         {value && (
           <button className="btn-ghost" onClick={copy}>
-            Copy
+            Copy one-line value
           </button>
         )}
       </div>
@@ -768,10 +783,12 @@ function ExportCard() {
       {state.status === "fail" && <p className="note-danger text-xs">✕ {state.message}</p>}
 
       {value && (
-        <p className="hint">
-          This contains every API key and the workspace password. Treat it exactly as you would the keys
-          themselves — never commit it, and paste it only into your host&apos;s secret storage.
-        </p>
+        <div className="note-danger text-xs leading-relaxed">
+          <strong className="font-bold">This file contains every API key and the workspace password.</strong>{" "}
+          Committing it is only safe in a <strong>private</strong> repository. In a public one, the Shopify,
+          Pinterest and Meta tokens can be used by anyone who finds it, and your AI keys are billed to you —
+          automated scanners find committed credentials within minutes.
+        </div>
       )}
     </section>
   );

@@ -4,8 +4,12 @@ next-env.d.ts
 tsconfig.tsbuildinfo
 .DS_Store
 
-# Real credentials live here. Secret.example.json is the version that ships.
+# Runtime state. Secret.example.json is the version that ships.
 Secret.json
+
+# workspace.config.json is deliberately NOT ignored: committing it is what lets
+# a plain git deploy work with no host configuration. It holds real API keys and
+# the workspace password, so the repository MUST be private.
 
 # Deployment env files. .env.example is the version that ships.
 .env

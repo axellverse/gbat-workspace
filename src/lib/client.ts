@@ -6,7 +6,7 @@ import type { PublicSecrets, SecretsPatch } from "./secrets";
 /** Deployment problems the signed-in UI should surface, not the values behind them. */
 export type Warnings = {
   defaultPassword: boolean;
-  configSource: "file" | "env" | "default";
+  configSource: "file" | "env" | "repo" | "default";
   readOnly: boolean;
   storageWritable: boolean;
   storageDetail: string;
